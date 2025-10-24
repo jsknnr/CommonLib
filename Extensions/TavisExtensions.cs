@@ -1,4 +1,3 @@
-
 // Credit to Apache from Vintage Story Discord
 
 using System.Collections.Generic;

@@ -31,7 +31,7 @@ namespace CommonLib.Extensions
         internal static void PlaceEntitiesAndBlockEntitiesRaw(this BlockSchematic schematic,
             IBlockAccessor blockAccessor, IWorldAccessor worldForResolve, BlockPos startPos)
         {
-            var pos = new BlockPos();
+            var pos = new BlockPos(startPos.dimension);
             foreach (KeyValuePair<uint, string> element in schematic.BlockEntities)
             {
                 uint index = element.Key;

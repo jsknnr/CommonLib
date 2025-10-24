@@ -1,6 +1,4 @@
-/* 
-    Based on https://github.com/copygirl/CarryCapacity/blob/master/src/Client/HudOverlayRenderer.cs
-*/
+// Based on https://github.com/copygirl/CarryCapacity/blob/master/src/Client/HudOverlayRenderer.cs
 
 using System;
 using Vintagestory.API.Client;

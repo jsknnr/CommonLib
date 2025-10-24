@@ -66,7 +66,7 @@ namespace CommonLib.Utils
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(file));
+                Directory.CreateDirectory(Path.GetDirectoryName(file)!);
                 var content = JsonUtil.ToString(data);
                 File.WriteAllText(file, content);
             }
