@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -18,6 +19,7 @@ namespace CommonLib.Config
 
         private IServerNetworkChannel? _serverChannel;
         private ICoreAPI _api = null!;
+        private List<(ConfigAttribute Config, int LoadedVersion)> _versionMismatch = null!;
 
         public Dictionary<Type, object> Configs { get; } = [];
 
@@ -26,7 +28,7 @@ namespace CommonLib.Config
         public override void StartPre(ICoreAPI api)
         {
             _api = api;
-            LoadAllConfigs();
+            LoadAllConfigs(out _versionMismatch);
         }
 
         public override void StartServerSide(ICoreServerAPI api)
@@ -37,13 +39,23 @@ namespace CommonLib.Config
 
             api.Event.PlayerNowPlaying += byPlayer =>
             {
-                if (_serverStartConfigErrors.Count > 0 &&
-                    byPlayer.Privileges.Contains(Privilege.controlserver))
+                if (byPlayer.Privileges.Contains(Privilege.controlserver))
                 {
-                    var text = $"<font color=#d0342c><strong>CommonLib:</strong></font> " +
-                        $"Can't load server configs:\n\n{string.Join("\n", _serverStartConfigErrors)}\n\n" +
-                        $"May cause problems, please check <font color=#ffa500>server-main.log</font> and report it";
-                    api.SendMessage(byPlayer, GlobalConstants.AllChatGroups, text, EnumChatType.OwnMessage);
+                    if (_serverStartConfigErrors.Count > 0)
+                    {
+                        var text = $"<font color=#d0342c><strong>CommonLib:</strong></font> " +
+                            $"Can't load server configs:\n\n{string.Join("\n", _serverStartConfigErrors)}\n\n" +
+                            $"May cause problems, please check <font color=#ffa500>server-main.log</font> and report it";
+                        api.SendMessage(byPlayer, GlobalConstants.AllChatGroups, text, EnumChatType.OwnMessage);
+                    }
+                    if (_versionMismatch.Count > 0)
+                    {
+                        var configs = _versionMismatch.Select(x => $"{x.Config.Name} {x.LoadedVersion}=&gt;{x.Config.Version}");
+                        var text = $"<font color=#d0342c><strong>CommonLib:</strong></font> " +
+                            $"Server configs version mismatch:\n\n{string.Join("\n", configs)}\n\n" +
+                            $"Some config values may be reset";
+                        api.SendMessage(byPlayer, GlobalConstants.AllChatGroups, text, EnumChatType.OwnMessage);
+                    }
                 }
             };
 
@@ -71,11 +83,19 @@ namespace CommonLib.Config
                         $"Can't load client configs:\n\n{string.Join("\n", _clientStartConfigErrors)}\n\n" +
                         $"May cause problems, please check <font color=#ffa500>client-main.log</font> and report it");
                 }
+                if (_versionMismatch.Count > 0 && !api.IsSinglePlayer)
+                {
+                    var configs = _versionMismatch.Select(x => $"{x.Config.Name} {x.LoadedVersion}=&gt;{x.Config.Version}");
+                    api.ShowChatMessage($"<font color=#d0342c><strong>CommonLib:</strong></font> " +
+                        $"Client configs version mismatch:\n\n{string.Join("\n", configs)}\n\n" +
+                        $"Some config values may be reset");
+                }
             };
         }
 
-        private void LoadAllConfigs()
+        private void LoadAllConfigs(out List<(ConfigAttribute Config, int LoadedVersion)> versionMismatch)
         {
+            versionMismatch = [];
             foreach (Type type in GetAllTypesWithAttribute<ConfigAttribute>())
             {
                 if (!_api.ModLoader.IsModEnabled(type.Assembly))
@@ -89,7 +109,15 @@ namespace CommonLib.Config
                     var config = Activator.CreateInstance(type)!;
                     try
                     {
-                        ConfigUtil.LoadConfig(_api, type, ref config, Mod.Logger);
+                        ConfigUtil.LoadConfig(_api, type, ref config, out var loadedVersion, Mod.Logger);
+                        var configAttr = type.GetCustomAttribute<ConfigAttribute>() ?? throw new ArgumentException($"{type} is not a config");
+                        if (configAttr.Version != loadedVersion)
+                        {
+                            versionMismatch.Add((configAttr, loadedVersion));
+                            Mod.Logger.Warning($"Config {FormatAssembly(type)} version mismatch {loadedVersion}=>{configAttr.Version}");
+                            var path = Path.Combine(GamePaths.ModConfig, configAttr.Filename);
+                            File.Copy(path, path + ".bak", true);
+                        }
                     }
                     catch (InvalidCastException e)
                     {

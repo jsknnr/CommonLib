@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using Vintagestory.API.Common;
@@ -13,13 +14,22 @@ namespace CommonLib.Config
 {
     internal static class ConfigUtil
     {
-        public static object LoadConfig(ICoreAPI api, Type type, ref object config, ILogger logger)
+        public static object LoadConfig(ICoreAPI api, Type type, ref object config, out int loadedVersion, ILogger logger)
         {
             var configAttr = type.GetCustomAttribute<ConfigAttribute>() ?? throw new ArgumentException($"{type} is not a config");
             var jsonConfig = api.LoadOrCreateConfig(configAttr.Filename, logger ?? api.Logger, new Dictionary<string, JsonConfigValue<object>>()) ?? [];
             var defaultConfig = Activator.CreateInstance(type);
+            var configProps = GetConfigProperties(type);
 
-            foreach (var prop in GetConfigProperties(type))
+            loadedVersion = -1;
+            if (configAttr.Version != -1 &&
+                !configProps.Any(x => x.Name == "Version") &&
+                jsonConfig.TryGetValue("Version", out var version))
+            {
+                loadedVersion = (int)ConvertType(version.Value, typeof(int), -1);
+            }
+
+            foreach (var prop in configProps)
             {
                 var defaultValue = prop.GetValue(defaultConfig);
                 if (jsonConfig.TryGetValue(prop.Name, out var element))
@@ -40,8 +50,16 @@ namespace CommonLib.Config
             var configAttr = type.GetCustomAttribute<ConfigAttribute>() ?? throw new ArgumentException($"{type} is not a config");
             var jsonConfig = new Dictionary<string, object>();
             var defaultConfig = Activator.CreateInstance(type);
+            var configProps = GetConfigProperties(type);
 
-            foreach (var prop in GetConfigProperties(type))
+            if (configAttr.Version != -1 && !configProps.Any(x => x.Name == "Version"))
+            {
+                var jsonItemType = typeof(JsonConfigValue<>).MakeGenericType(typeof(object));
+                var jsonItem = Activator.CreateInstance(jsonItemType, configAttr.Version, configAttr.Version)!;
+                jsonConfig.Add("Version", jsonItem);
+            }
+
+            foreach (var prop in configProps)
             {
                 var value = prop.GetValue(config);
                 var defaultValue = prop.GetValue(defaultConfig);

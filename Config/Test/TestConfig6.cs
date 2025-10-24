@@ -1,7 +1,8 @@
 #if DEBUG
+
 namespace CommonLib.Config
 {
-    [Config("test6.json")]
+    [Config("test6.json", Version = 1)]
     public class TestConfig6
     {
         [WaypointName]

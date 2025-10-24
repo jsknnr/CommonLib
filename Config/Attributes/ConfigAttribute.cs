@@ -25,12 +25,13 @@ namespace CommonLib.Config
         public string Name { get; }
         public string Filename { get; }
         public bool UseAllPropertiesByDefault { get; set; } = true;
+        public int Version { get; set; } = -1;
 
         public ConfigAttribute(string filename)
         {
             if (filename.EndsWith(".json"))
             {
-                Name = filename.Substring(0, filename.Length - 5);
+                Name = filename[..^5];
                 Filename = filename;
             }
             else
