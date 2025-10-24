@@ -1,5 +1,6 @@
 using ProtoBuf;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.Globalization;
 using Vintagestory.API.MathTools;
 
@@ -58,6 +59,12 @@ namespace CommonLib.Utils
         public static DarkColor FromHSL(int hsl)
         {
             return new DarkColor(ColorUtil.Hsv2Rgb(hsl));
+        }
+
+        public static DarkColor FromHtmlCode(string htmlCode)
+        {
+            var color = Color.FromName(htmlCode);
+            return FromARGB(color.A, color.R, color.G, color.B);
         }
 
         public override bool Equals([NotNullWhen(true)] object? obj)
