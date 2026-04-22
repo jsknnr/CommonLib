@@ -1,0 +1,10 @@
+{
+	"type": "Code",
+	"name": "CommonLib",
+	"modid": "commonlib",
+	"version": "2.8.1",
+	"authors": ["DArkHekRoMaNT"],
+	"dependencies": {
+		"game": "1.22.0"
+	}
+}
