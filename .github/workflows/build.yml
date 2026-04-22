@@ -1,0 +1,72 @@
+name: Build mod
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed by softprops/action-gh-release on tag pushes
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Read metadata from modinfo.json
+        id: meta
+        run: |
+          MOD_VERSION=$(jq -r '.version' modinfo.json)
+          GAME_VERSION=$(jq -r '.dependencies.game' modinfo.json)
+          echo "mod_version=$MOD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "game_version=$GAME_VERSION" >> "$GITHUB_OUTPUT"
+          echo "zip_name=CommonLib_VS${GAME_VERSION}_net10_v${MOD_VERSION}.zip" >> "$GITHUB_OUTPUT"
+
+      # VS ships a headless server tarball that includes VintagestoryAPI.dll,
+      # VintagestoryLib.dll, Mods/VS*.dll, and Lib/*.dll — everything the csproj
+      # references. If the URL pattern changes in a future VS release, update
+      # the base URL here.
+      - name: Download Vintage Story API
+        env:
+          GAME_VERSION: ${{ steps.meta.outputs.game_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/vs"
+          URL="https://cdn.vintagestory.at/gamefiles/stable/vs_server_${GAME_VERSION}.tar.gz"
+          echo "Downloading $URL"
+          curl -fsSL "$URL" | tar -xz -C "$HOME/vs"
+          test -f "$HOME/vs/VintagestoryAPI.dll" || { echo "VintagestoryAPI.dll not found in extracted archive"; ls -la "$HOME/vs"; exit 1; }
+          echo "VINTAGE_STORY=$HOME/vs" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: dotnet build -c Release --nologo
+
+      - name: Package mod zip
+        env:
+          ZIP_NAME: ${{ steps.meta.outputs.zip_name }}
+        run: |
+          set -euo pipefail
+          cd bin/Release/Mods/CommonLib
+          # Exclude .pdb from release zip to match upstream packaging
+          zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" . -x '*.pdb'
+          cd "$GITHUB_WORKSPACE"
+          unzip -l "$ZIP_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.zip_name }}
+          path: ${{ steps.meta.outputs.zip_name }}
+          if-no-files-found: error
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.meta.outputs.zip_name }}
+          generate_release_notes: true
