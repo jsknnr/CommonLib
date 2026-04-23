@@ -24,7 +24,7 @@ jobs:
           GAME_VERSION=$(jq -r '.dependencies.game' modinfo.json)
           echo "mod_version=$MOD_VERSION" >> "$GITHUB_OUTPUT"
           echo "game_version=$GAME_VERSION" >> "$GITHUB_OUTPUT"
-          echo "zip_name=CommonLib_VS${GAME_VERSION}_net10_v${MOD_VERSION}.zip" >> "$GITHUB_OUTPUT"
+          echo "zip_name=CommonLibForked_VS${GAME_VERSION}_net10_v${MOD_VERSION}.zip" >> "$GITHUB_OUTPUT"
 
       # VS ships a headless server tarball that includes VintagestoryAPI.dll,
       # VintagestoryLib.dll, Mods/VS*.dll, and Lib/*.dll — everything the csproj
@@ -50,7 +50,7 @@ jobs:
           ZIP_NAME: ${{ steps.meta.outputs.zip_name }}
         run: |
           set -euo pipefail
-          cd bin/Release/Mods/CommonLib
+          cd bin/Release/Mods/CommonLibForked
           # Exclude .pdb from release zip to match upstream packaging
           zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" . -x '*.pdb'
           cd "$GITHUB_WORKSPACE"

@@ -1,9 +1,10 @@
 {
 	"type": "Code",
-	"name": "CommonLib",
-	"modid": "commonlib",
+	"name": "CommonLib-Forked",
+	"modid": "commonlibforked",
 	"version": "2.8.1",
-	"authors": ["DArkHekRoMaNT"],
+	"website": "https://github.com/jsknnr/CommonLib",
+	"authors": ["DArkHekRoMaNT", "jsknnr"],
 	"dependencies": {
 		"game": "1.22.0"
 	}
